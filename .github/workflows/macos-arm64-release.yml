@@ -70,6 +70,12 @@ jobs:
         brew install automake libtool cmake pkg-config wget meson python-packaging ccache || true
         # Run the dependency installation script
         ./scripts/macosx-build-homebrew.sh
+        # Ensure key packages are linked
+        brew link eigen || true
+        brew link boost || true
+        brew link cgal || true
+        brew link opencsg || true
+        brew link glew || true
 
     - name: Setup ccache
       uses: actions/cache@v4
