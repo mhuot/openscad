@@ -83,6 +83,9 @@ jobs:
         brew link --overwrite lib3mf || true
         brew link --overwrite freetype || true
         brew link --overwrite glib || true
+        brew link --overwrite libzip || true
+        brew link --overwrite libxml2 || true
+        brew link --overwrite tbb || true
 
     - name: Setup ccache
       uses: actions/cache@v4
