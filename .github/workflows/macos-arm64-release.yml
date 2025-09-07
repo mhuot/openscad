@@ -29,8 +29,10 @@ jobs:
     - name: Install dependencies via Homebrew
       run: |
         brew update
+        # Handle potential cmake conflicts
+        brew uninstall --ignore-dependencies cmake || true
         # Install build tools
-        brew install automake libtool cmake pkg-config wget meson python-packaging
+        brew install automake libtool cmake pkg-config wget meson python-packaging || true
         # Run the dependency installation script
         ./scripts/macosx-build-homebrew.sh
 
