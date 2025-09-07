@@ -3,9 +3,13 @@ name: macOS ARM64 Release Build
 on:
   push:
     branches:
+      - add-macos-arm64-workflow  # Testing branch
       - macos-arm64-release-build
     tags:
       - '*'
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
