@@ -23,7 +23,7 @@ jobs:
     - name: Setup build environment
       run: |
         echo "Setting up build environment for ARM64"
-        echo "Build date: $(date '+%Y.%m.%d')" >> $GITHUB_ENV
+        echo "BUILD_DATE=$(date '+%Y.%m.%d')" >> $GITHUB_ENV
         echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
     - name: Install dependencies via Homebrew
