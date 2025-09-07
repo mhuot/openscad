@@ -40,11 +40,17 @@ jobs:
       run: |
         mkdir -p build
         cd build
+        # Use date-based version for non-tag builds
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION="${{ github.ref_name }}"
+        else
+          VERSION="${{ env.BUILD_DATE }}.ci.${{ env.SHORT_SHA }}"
+        fi
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_OSX_ARCHITECTURES=arm64 \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
-          -DOPENSCAD_VERSION="${{ github.ref_name }}"
+          -DOPENSCAD_VERSION="$VERSION"
 
     - name: Build OpenSCAD
       run: |
