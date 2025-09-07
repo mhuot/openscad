@@ -26,15 +26,65 @@ jobs:
         echo "BUILD_DATE=$(date '+%Y.%m.%d')" >> $GITHUB_ENV
         echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
+    - name: Cache Homebrew packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/Homebrew
+          ~/Library/Caches/Homebrew/downloads
+          /opt/homebrew/Cellar
+          /opt/homebrew/opt
+        key: ${{ runner.os }}-brew-${{ hashFiles('scripts/macosx-build-homebrew.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-brew-
+
+    - name: Cache Qt
+      uses: actions/cache@v4
+      with:
+        path: |
+          /opt/homebrew/opt/qt*
+          /opt/homebrew/Cellar/qt*
+        key: ${{ runner.os }}-qt-${{ hashFiles('scripts/macosx-build-homebrew.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-qt-
+
+    - name: Cache build dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          /opt/homebrew/Cellar/cgal
+          /opt/homebrew/Cellar/boost
+          /opt/homebrew/Cellar/eigen
+          /opt/homebrew/Cellar/opencsg
+          /opt/homebrew/Cellar/lib3mf
+        key: ${{ runner.os }}-deps-${{ hashFiles('scripts/macosx-build-homebrew.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-
+
     - name: Install dependencies via Homebrew
       run: |
         brew update
         # Handle potential cmake conflicts
         brew uninstall --ignore-dependencies cmake || true
-        # Install build tools
-        brew install automake libtool cmake pkg-config wget meson python-packaging || true
+        # Install build tools including ccache for faster builds
+        brew install automake libtool cmake pkg-config wget meson python-packaging ccache || true
         # Run the dependency installation script
         ./scripts/macosx-build-homebrew.sh
+
+    - name: Setup ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ${{ runner.os }}-ccache-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-
+
+    - name: Configure ccache
+      run: |
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+        ccache --set-config=max_size=500M
+        ccache --set-config=compression=true
+        ccache -z  # Zero stats
 
     - name: Configure build
       run: |
@@ -46,16 +96,23 @@ jobs:
         else
           VERSION="${{ env.BUILD_DATE }}.ci.${{ env.SHORT_SHA }}"
         fi
+        # Enable ccache
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_OSX_ARCHITECTURES=arm64 \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DOPENSCAD_VERSION="$VERSION"
 
     - name: Build OpenSCAD
       run: |
         cd build
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
         make -j$(sysctl -n hw.ncpu)
+        # Show ccache stats
+        ccache -s
 
     - name: Verify ARM64 build
       run: |
