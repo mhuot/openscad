@@ -3,14 +3,9 @@ name: macOS ARM64 Release Build
 on:
   push:
     branches:
-      - add-macos-arm64-workflow  # Testing branch
       - macos-arm64-release-build
     tags:
       - '*'
-  pull_request:
-    branches:
-      - master
-  workflow_dispatch:
 
 jobs:
   build-macos-arm64:
@@ -72,14 +67,22 @@ jobs:
         brew uninstall --ignore-dependencies cmake || true
         # Install build tools including ccache for faster builds
         brew install automake libtool cmake pkg-config wget meson python-packaging ccache || true
+        # Install critical dependencies that might not be installed by the script
+        brew install double-conversion tbb imagemagick libzip libxml2 || true
         # Run the dependency installation script
         ./scripts/macosx-build-homebrew.sh
-        # Ensure key packages are linked
-        brew link eigen || true
-        brew link boost || true
-        brew link cgal || true
-        brew link opencsg || true
-        brew link glew || true
+        # Ensure all key packages are linked
+        brew link --overwrite eigen || true
+        brew link --overwrite boost || true
+        brew link --overwrite cgal || true
+        brew link --overwrite opencsg || true
+        brew link --overwrite glew || true
+        brew link --overwrite double-conversion || true
+        brew link --overwrite fontconfig || true
+        brew link --overwrite harfbuzz || true
+        brew link --overwrite lib3mf || true
+        brew link --overwrite freetype || true
+        brew link --overwrite glib || true
 
     - name: Setup ccache
       uses: actions/cache@v4
