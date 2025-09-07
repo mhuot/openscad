@@ -71,9 +71,6 @@ jobs:
         # Run the dependency installation script
         ./scripts/macosx-build-homebrew.sh
 
-    - name: Install ccache
-      run: brew install ccache
-
     - name: Setup ccache
       uses: actions/cache@v4
       with:
@@ -84,10 +81,13 @@ jobs:
 
     - name: Configure ccache
       run: |
+        # Ensure ccache is linked
+        brew link ccache || true
+        which ccache || echo "ccache not in PATH"
         export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
-        ccache --set-config=max_size=500M
-        ccache --set-config=compression=true
-        ccache -z  # Zero stats
+        /opt/homebrew/bin/ccache --set-config=max_size=500M
+        /opt/homebrew/bin/ccache --set-config=compression=true
+        /opt/homebrew/bin/ccache -z  # Zero stats
 
     - name: Configure build
       run: |
@@ -115,7 +115,7 @@ jobs:
         export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
         make -j$(sysctl -n hw.ncpu)
         # Show ccache stats
-        ccache -s
+        /opt/homebrew/bin/ccache -s || echo "ccache stats not available"
 
     - name: Verify ARM64 build
       run: |
