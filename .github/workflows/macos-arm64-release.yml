@@ -1,0 +1,136 @@
+name: macOS ARM64 Release Build
+
+on:
+  push:
+    branches:
+      - macos-arm64-release-build
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build-macos-arm64:
+    name: Build OpenSCAD for macOS ARM64
+    runs-on: macos-14  # Apple Silicon runner
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup build environment
+      run: |
+        echo "Setting up build environment for ARM64"
+        echo "Build date: $(date '+%Y.%m.%d')" >> $GITHUB_ENV
+        echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: Install dependencies via Homebrew
+      run: |
+        brew update
+        # Install build tools
+        brew install automake libtool cmake pkg-config wget meson python-packaging
+        # Run the dependency installation script
+        ./scripts/macosx-build-homebrew.sh
+
+    - name: Configure build
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_OSX_ARCHITECTURES=arm64 \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+          -DOPENSCAD_VERSION="${{ github.ref_name }}"
+
+    - name: Build OpenSCAD
+      run: |
+        cd build
+        make -j$(sysctl -n hw.ncpu)
+
+    - name: Verify ARM64 build
+      run: |
+        cd build
+        file OpenSCAD.app/Contents/MacOS/OpenSCAD | grep arm64
+        ./OpenSCAD.app/Contents/MacOS/OpenSCAD --version
+
+    - name: Create DMG installer
+      run: |
+        cd build
+        # Create a DMG for easy distribution
+        VERSION="${{ github.ref_name }}"
+        if [[ "$VERSION" != v* ]]; then
+          VERSION="dev-${{ env.SHORT_SHA }}"
+        fi
+        
+        # Create temporary directory for DMG contents
+        mkdir -p dmg_contents
+        cp -R OpenSCAD.app dmg_contents/
+        ln -s /Applications dmg_contents/Applications
+        
+        # Create DMG
+        hdiutil create -volname "OpenSCAD-${VERSION}-ARM64" \
+          -srcfolder dmg_contents \
+          -ov -format UDZO \
+          "OpenSCAD-${VERSION}-macOS-ARM64.dmg"
+        
+        # Clean up
+        rm -rf dmg_contents
+        
+        # Move DMG to artifacts directory
+        mkdir -p ../artifacts
+        mv *.dmg ../artifacts/
+
+    - name: Code signing (optional)
+      if: env.MACOS_CERTIFICATE != ''
+      env:
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        MACOS_IDENTITY: ${{ secrets.MACOS_IDENTITY }}
+      run: |
+        # This step requires Apple Developer certificates
+        # Add code signing here if you have certificates
+        echo "Code signing would happen here with proper certificates"
+        # codesign --deep --force --verify --verbose \
+        #   --sign "$MACOS_IDENTITY" \
+        #   build/OpenSCAD.app
+
+    - name: Notarization (optional)
+      if: env.APPLE_ID != ''
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        # This step requires Apple Developer account
+        echo "Notarization would happen here with proper credentials"
+        # xcrun notarytool submit artifacts/*.dmg \
+        #   --apple-id "$APPLE_ID" \
+        #   --password "$APPLE_PASSWORD" \
+        #   --team-id "$APPLE_TEAM_ID" \
+        #   --wait
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: openscad-macos-arm64-${{ env.SHORT_SHA }}
+        path: artifacts/*.dmg
+        retention-days: 30
+
+    - name: Create checksums
+      run: |
+        cd artifacts
+        for file in *.dmg; do
+          shasum -a 256 "$file" > "$file.sha256"
+        done
+
+    - name: Upload checksums
+      uses: actions/upload-artifact@v4
+      with:
+        name: checksums-macos-arm64-${{ env.SHORT_SHA }}
+        path: artifacts/*.sha256
+
+  # Release creation can be handled separately or via existing release process
+  # The build artifacts will be available for download from the workflow run
+
