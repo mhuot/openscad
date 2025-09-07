@@ -3,7 +3,7 @@ name: macOS ARM64 Release Build
 on:
   push:
     branches:
-      - macos-arm64-release-build
+      - add-macos-arm64-workflow
     tags:
       - '*'
 
