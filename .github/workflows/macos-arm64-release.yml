@@ -86,6 +86,8 @@ jobs:
         brew link --overwrite libzip || true
         brew link --overwrite libxml2 || true
         brew link --overwrite tbb || true
+        brew link --overwrite qscintilla2 || true
+        brew link --overwrite qt || true
 
     - name: Setup ccache
       uses: actions/cache@v4
